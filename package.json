@@ -1,0 +1,14 @@
+{
+  "name": "image_generator",
+  "version": "0.0.1",
+  "description": "",
+  "main": "generator.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "author": "jack_karver",
+  "license": "ISC",
+  "dependencies": {
+    "sharp": "^0.29.3"
+  }
+}
