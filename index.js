@@ -4,7 +4,7 @@ const path = require('path');
 
 
 const dir = {
-    traitTypes: `./layers/trait_types`,
+    types: `./layers/trait_types`,
     outputs: `./outputs`,
     background: `./layers/background`,
 }
@@ -19,24 +19,26 @@ const params = JSON.parse(fs.readFileSync(`params.json`))
 
 
 
-const main = async () => {    
-    const types = fs.readdirSync(dir.traitTypes)  
-    let traitTypes = types.concat()
+const main = () => {    
+    const typesArr = fs.readdirSync(dir.types)  
+    let types = typesArr.concat()
         .map(traitType => (
-            fs.readdirSync(`${dir.traitTypes}/${traitType}/`)
+            fs.readdirSync(`${dir.types}/${traitType}/`)
                 .map(file => {
-                    return { trait_Type: traitType, file: file }
+                    return { type: traitType, file: file }
                 })              
         ));
   
     const backs = fs.readdirSync(`${dir.background}`);
-    traitTypes = await (createRandFilesProb(traitTypes)); 
-    params.files = traitTypes;    
+    types = (createRandFilesProb(types)); 
+    params.files = types;    
     fs.writeFileSync(`params.json`, JSON.stringify(params));
     const max = params.amount
-    let combinations = createCombinations(traitTypes, max)
+    let combinations = createCombinations(types, max)
     let compositeObjArr = createCompositeObj(combinations)
     console.log(compositeObjArr);
+    drawImage(compositeObjArr, backs);
+    drawMeta(combinations);
 }
 
 const createRandFilesProb = (traitsArr) => {    
@@ -59,8 +61,9 @@ const createRandFilesProb = (traitsArr) => {
             else if (rand <= 0) {
                obj.probablity = 0
             }            
-        })        
-        if (params.mandatory.includes(path[0].trait_Type) && (!path.some(obj=> obj.probablity == 100))) {
+        })
+        let ord = params.order.find((item)=>item.type == path[0].type)
+        if ((ord.req == true) && (!path.some(obj=> obj.probablity == 100))) {
             path[path.length-1].probablity = 100
         }
     })
@@ -81,40 +84,42 @@ const createCombinations = (traitsArr, max) => {
             if (myObj != void (0)) {
                 return myObj
             }
-            else return {trait_Type:'N/A'}
+            else return {type:'N/A'}
         }));
-        //console.log(comb);
-        comb = comb.filter(obj => obj.trait_Type != 'N/A')
+        
+        comb = comb.filter(obj => obj.type != 'N/A')
+        comb.sort((prev, next) => {
+            let frstInd = params.order.findIndex(currentValue => currentValue.type == prev.type )
+            let scndInd = params.order.findIndex(currentValue => currentValue.type == next.type)
+            return frstInd - scndInd
+        })
         combinations.push(comb)        
-    }    
-    console.log(combinations);
+    }        
     return combinations
 }
 
 const createCompositeObj = (combinations) => {
     let compositeArr = combinations.map(comb => {
-        comb.map(obj=>{
-        let composite = []        
-        for (const layer in obj) {             
-            composite.push({ input: `${dir.traitTypes}/${layer.trait_Type}/${layer.file}`})
-        }
-            return composite
+        let composite = []
+        comb.map(obj=>{                           
+            composite.push({ input: `${dir.types}/${obj.type}/${obj.file}`})        
+           
         })
-        return comb
+        return composite
     })
     return compositeArr
 }
-const drawImage = (combinations, composites, backs) => {
-    for (const item of composites) {   
+async function drawImage(composites, backs){
+    let i = 0
+    for (const items of composites) {   
         let rand = Math.round(Math.random() * backs.length)       
-        sharp(`${dir.background}/${backs[rand]}`)
+        await sharp(`${dir.background}/${backs[rand]}`)
             .withMetadata()
-            .composite([{ input: `${dir.traitTypes}/punks/${trait.punks[2]}` },
-            { input: `${dir.traitTypes}/top/${trait.top[0]}` }])
+            .composite(items)
             .resize(imageFormat.width, imageFormat.height)
-            .toFile(`${dir.outputs}/${i++}.png`)
+            .toFile(`${dir.outputs}/images/${++i}.png`)
             .then(() => {
-                console.log(`Progress: ${i}`);
+                console.log(`Progress: ${i}/${composites.length}`);
             }).catch(error => {
                 console.log(error);
             })
@@ -122,5 +127,13 @@ const drawImage = (combinations, composites, backs) => {
     }
 }
 
+async function drawMeta(combinations){
+    let i = 1
+    for (const item of combinations) {
+        fs.appendFile(`${dir.outputs}/meta/${i++}.json`, JSON.stringify(item), err => {
+            if(err) console.log(error);
+        })
+    }
+}
 
 main()
