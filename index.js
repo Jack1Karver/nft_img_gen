@@ -1,6 +1,6 @@
 const sharp = require('sharp');
 const fs = require('fs');
-const path = require('path');
+
 
 
 const dir = {
@@ -112,7 +112,7 @@ const createCompositeObj = (combinations) => {
 async function drawImage(composites, backs){
     let i = 0
     for (const items of composites) {   
-        let rand = Math.round(Math.random() * backs.length)       
+        let rand = Math.trunc(Math.random() * (backs.length))       
         await sharp(`${dir.background}/${backs[rand]}`)
             .withMetadata()
             .composite(items)
